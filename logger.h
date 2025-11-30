@@ -342,23 +342,24 @@ int default_formatter(char* buffer, int size, const struct log_ctx_t* logger, lo
     const char* file = source_location.file ? source_location.file : "?";
     const char* name = logger->name ? logger->name : "";
 
-    int header_len = *name
-            ? snprintf(buffer, size-1, "%s:%-3d [%s:%s]: ", file, source_location.line, name, LOG_LEVEL_NAMES[level])
-            : snprintf(buffer, size-1, "%s:%-3d [%s]: ",    file, source_location.line, LOG_LEVEL_NAMES[level]);
+    int len = 0;
+    size -= 1;
 
-    if (header_len < 0)
-        header_len = 0;
-    if (header_len >= size)
-        header_len = size - 1;
+    if (*source_location.file) {
+        len += snprintf(buffer+len, size, "%s:%-3d ", file, source_location.line);
+        size -= len;
+    }
 
-    int body_len = vsnprintf(buffer + header_len, size - header_len - 1, message, args);
+    if (*name) {
+        len += snprintf(buffer+len, size, "[%s:%s]: ", LOG_LEVEL_NAMES[level], name);
+        size -= len;
+    } else {
+        len += snprintf(buffer+len, size, "[%s]: ", LOG_LEVEL_NAMES[level]);
+        size -= len;
+    }
 
-    if (body_len < 0)
-        body_len = 0;
-    if (header_len + body_len >= size)
-        body_len = size - header_len - 1;
-
-    return header_len + body_len;
+    len += vsnprintf(buffer + len, size, message, args);
+    return len;
 }
 
 
