@@ -156,7 +156,13 @@ extern log_sink_t stdout_sink;
 extern log_sink_t stderr_sink;
 
 int logger_assert_is_enabled(void);
-log_sink_t log_sink_ring_buffer(char *buffer, size_t size);
+
+struct ring_sink_state {
+    char*  buffer;
+    size_t size;
+    size_t head;
+};
+log_sink_t log_sink_ring_buffer(struct ring_sink_state* st);
 
 
 typedef struct log_init_args_t {
@@ -203,18 +209,11 @@ log_sink_t log_sink_from_fd(int fd) {
     return sink;
 }
 
-
-struct ring_sink_state {
-    char  *buf;
-    size_t size;
-    size_t head;
-};
-
 static void ring_sink_write(void* data, const struct log_record_t* record) {
     struct log_record_t rec = *record;
     struct ring_sink_state* st = data;
 
-    if (!st || !st->buf || st->size == 0) return;
+    if (!st || !st->buffer || st->size == 0) return;
 
     size_t want = rec.message_len + 2; // + '\n' + '\0'
     if (want > st->size) {
@@ -232,27 +231,20 @@ static void ring_sink_write(void* data, const struct log_record_t* record) {
         st->head -= 1;  // Remove '\0' from previous message.
     }
 
-    memcpy(st->buf + st->head, rec.message, rec.message_len);
+    memcpy(st->buffer + st->head, rec.message, rec.message_len);
     st->head += rec.message_len;
-    st->buf[st->head++] = '\n';
-    st->buf[st->head++] = '\0';
+    st->buffer[st->head++] = '\n';
+    st->buffer[st->head++] = '\0';
     if (st->head >= st->size) {
         st->head = 0;
     }
 }
 
-log_sink_t log_sink_ring_buffer(char *buffer, size_t size) {
-    struct ring_sink_state* st = malloc(sizeof(struct ring_sink_state));
-
-    st->buf  = buffer;
-    st->size = size;
-    st->head = 0;
-
+log_sink_t log_sink_ring_buffer(struct ring_sink_state* st) {
     log_sink_t sink = {
-            .write = ring_sink_write,
-            .data  = st
+        .write = ring_sink_write,
+        .data  = st
     };
-
     return sink;
 }
 

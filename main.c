@@ -75,7 +75,8 @@ int main() {
 
     printf("\n---------------------------------------- MEMORY SINK ---------------------------------------- \n");
     char buffer[1024] = { 0 };
-    log_sink_t mem_sink = log_sink_ring_buffer(buffer, 1024);
+    struct ring_sink_state state = { .buffer = buffer, .size = sizeof(buffer) };
+    log_sink_t mem_sink = log_sink_ring_buffer(&state);
     with_log(.name = "memory_sink_for_warn_and_error", .level = LOG_TRACE, .sinks[LOG_WARN] = &mem_sink, .sinks[LOG_ERROR] = &mem_sink) {
         printf(">>> Memory sink contains\n%s<<<\n", buffer);
         int result = other_api(10);
