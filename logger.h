@@ -24,28 +24,28 @@ typedef enum log_level_t {
 const char* log_level_name(log_level_t level);
 
 
-#define trace(...)  do { if (LOG_TRACE >= log_current->level) { logger_log(log_current, LOG_TRACE, current_source_location(), __VA_ARGS__); }} while (0)
-#define debug(...)  do { if (LOG_DEBUG >= log_current->level) { logger_log(log_current, LOG_DEBUG, current_source_location(), __VA_ARGS__); }} while (0)
-#define info(...)   do { if (LOG_INFO  >= log_current->level) { logger_log(log_current, LOG_INFO,  current_source_location(), __VA_ARGS__); }} while (0)
-#define warn(...)   do { if (LOG_WARN  >= log_current->level) { logger_log(log_current, LOG_WARN,  current_source_location(), __VA_ARGS__); }} while (0)
-#define error(...)  do { if (LOG_ERROR >= log_current->level) { logger_log(log_current, LOG_ERROR, current_source_location(), __VA_ARGS__); }} while (0)
-#define panic(...)  do { if (LOG_PANIC >= log_current->level) { logger_log(log_current, LOG_PANIC, current_source_location(), __VA_ARGS__); terminate_with_backtrace(); }} while (0)
+#define trace_at(loc, ...)  ((LOG_TRACE >= log_current->level) ? (logger_log(log_current, LOG_TRACE, loc, __VA_ARGS__), 1) : 0)
+#define debug_at(loc, ...)  ((LOG_DEBUG >= log_current->level) ? (logger_log(log_current, LOG_DEBUG, loc, __VA_ARGS__), 1) : 0)
+#define info_at(loc, ...)   ((LOG_INFO  >= log_current->level) ? (logger_log(log_current, LOG_INFO,  loc, __VA_ARGS__), 1) : 0)
+#define warn_at(loc, ...)   ((LOG_WARN  >= log_current->level) ? (logger_log(log_current, LOG_WARN,  loc, __VA_ARGS__), 1) : 0)
+#define error_at(loc, ...)  ((LOG_ERROR >= log_current->level) ? (logger_log(log_current, LOG_ERROR, loc, __VA_ARGS__), 1) : 0)
+#define panic_at(loc, ...)  ((LOG_PANIC >= log_current->level) ? (logger_log(log_current, LOG_PANIC, loc, __VA_ARGS__), terminate_with_backtrace()) : 0)
 
-#define assertc(cond)      do { if (logger_assert_is_enabled() && !(cond)) { logger_assert_log(log_current, current_source_location(), #cond, "");          terminate_with_backtrace(); }} while (0)
-#define assertf(cond, ...) do { if (logger_assert_is_enabled() && !(cond)) { logger_assert_log(log_current, current_source_location(), #cond, __VA_ARGS__); terminate_with_backtrace(); }} while (0)
-#define assert(...)        SELECT_FUNCTION(assert, VA_ARGS_DISPATCH(__VA_ARGS__))(__VA_ARGS__)
+#define assertc_at(loc, cond)      ((logger_assert_is_enabled() && !(cond)) ? (logger_assert_log(log_current, loc, #cond, ""),          terminate_with_backtrace()) : 0)
+#define assertf_at(loc, cond, ...) ((logger_assert_is_enabled() && !(cond)) ? (logger_assert_log(log_current, loc, #cond, __VA_ARGS__), terminate_with_backtrace()) : 0)
+#define assert_at(loc, ...)        SELECT_FUNCTION(assert_loc, VA_ARGS_DISPATCH(__VA_ARGS__))(loc, __VA_ARGS__)
 
 
-#define trace_loc(loc, ...)  do { if (LOG_TRACE >= log_current->level) { logger_log(log_current, LOG_TRACE, loc, __VA_ARGS__); }} while (0)
-#define debug_loc(loc, ...)  do { if (LOG_DEBUG >= log_current->level) { logger_log(log_current, LOG_DEBUG, loc, __VA_ARGS__); }} while (0)
-#define info_loc(loc, ...)   do { if (LOG_INFO  >= log_current->level) { logger_log(log_current, LOG_INFO,  loc, __VA_ARGS__); }} while (0)
-#define warn_loc(loc, ...)   do { if (LOG_WARN  >= log_current->level) { logger_log(log_current, LOG_WARN,  loc, __VA_ARGS__); }} while (0)
-#define error_loc(loc, ...)  do { if (LOG_ERROR >= log_current->level) { logger_log(log_current, LOG_ERROR, loc, __VA_ARGS__); }} while (0)
-#define panic_loc(loc, ...)  do { if (LOG_PANIC >= log_current->level) { logger_log(log_current, LOG_PANIC, loc, __VA_ARGS__); terminate_with_backtrace(); }} while (0)
+#define trace(...)  trace_at(current_source_location(), __VA_ARGS__)
+#define debug(...)  debug_at(current_source_location(), __VA_ARGS__)
+#define info(...)   info_at(current_source_location(), __VA_ARGS__)
+#define warn(...)   warn_at(current_source_location(), __VA_ARGS__)
+#define error(...)  error_at(current_source_location(), __VA_ARGS__)
+#define panic(...)  panic_at(current_source_location(), __VA_ARGS__)
 
-#define assert_locc(loc, cond)      do { if (logger_assert_is_enabled() && !(cond)) { logger_assert_log(log_current, loc, #cond, "");          terminate_with_backtrace(); }} while (0)
-#define assert_locf(loc, cond, ...) do { if (logger_assert_is_enabled() && !(cond)) { logger_assert_log(log_current, loc, #cond, __VA_ARGS__); terminate_with_backtrace(); }} while (0)
-#define assert_loc(loc, ...)        SELECT_FUNCTION(assert_loc, VA_ARGS_DISPATCH(__VA_ARGS__))(loc, __VA_ARGS__)
+#define assertc(cond)      assertc_at(current_source_location(), #cond, "")
+#define assertf(cond, ...) assertf_at(current_source_location(), #cond, __VA_ARGS__)
+#define assert(...)        assert_at_at(current_source_location(), __VA_ARGS__)
 
 
 typedef struct source_location_t {
@@ -253,7 +253,7 @@ log_sink_t log_sink_ring_buffer(struct ring_sink_state* st) {
 
 
 __attribute__((noinline, noreturn, cold))
-void terminate_with_backtrace(void) {
+int terminate_with_backtrace(void) {
     void* callstack[128] = { 0 };
     int frames = backtrace(callstack, 128);
     char** strs = backtrace_symbols(callstack, frames);
